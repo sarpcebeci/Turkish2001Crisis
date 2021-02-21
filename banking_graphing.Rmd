@@ -1,0 +1,376 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(lubridate)
+library(xts)
+library(dygraphs)
+library(WDI)
+library(tidyverse)
+library(reshape2)
+library(cowplot)
+```
+
+
+### Net Portfolio Assets 
+```{r}
+df1 %>% 
+  filter(Date > "1991-11-01",
+         Date < "2005-01-01") %>%
+  ggplot()+ 
+  geom_line(aes(x = Date, y = FDI_Net_Assets_MilUS), color = "green")+
+  labs(x = "Year",
+       y = "Million USD",
+       title = "Net Portfolio Assets")
+```
+
+
+```{r}
+
+df1_After92 <- df1 %>% 
+  filter(Date > "1991-11-01",
+         Date < "2005-01-01")
+df1_After92 %>%
+  ggplot()+
+  geom_smooth(aes(Date, FDI_Net_Assets_MilUS))
+  
+df1 %>% 
+  filter(Date > "1991-11-01",
+         Date < "2005-01-01") %>%
+  ggplot()+
+  geom_line(aes(Date, ))
+
+df1_After92 %>%
+  dygraph() 
+
+df1 #%>% 
+  select(c(Date, Export_MilUS, Import_MilUS)) %>%
+  filter(Date > "1991-11-01") %>%
+  melt(id = "Date") %>%
+  ggplot()+
+  geom_line(aes(Date, value, color = variable))
+  
+  
+
+```
+
+### IMF Credits
+
+```{r}
+TR_WDI %>%
+  select(Years, IMF_Credit) %>%
+  ggplot()+
+  geom_line(aes(Years, IMF_Credit))+
+  geom_vline(xintercept = 2001, color = "red")+
+  labs(title= "Turkey's IMF Debt")
+
+```
+
+
+
+### Money Growth and Inflation Consumer
+
+```{r}
+
+TR_WDI %>%
+  select(Years, Money_Growth, Inflation_Consumer) %>%
+  melt(id = "Years") %>%
+  ggplot(aes(Years, value, color = variable))+
+  geom_line()
+
+```
+
+### Reserves
+
+```{r}
+df2 %>% 
+  select(Date, BS_Reserve, BS_Banks, BS_Cental_Bank) %>%
+  filter(Date < "2010-01-01") %>%
+  melt(id = "Date") %>%
+  ggplot(aes(Date, value))+
+  geom_area(aes(fill = variable))
+```
+
+### Current Account and Net Portfolio Assets
+
+```{r}
+df1 %>%
+  select(Date,Current_Accounts_MilUS, Portfolio_Net_Assets_MilUS) %>%
+  melt(id = "Date") %>%
+  ggplot(aes(Date, value, color = variable))+
+  geom_line()
+```
+
+### Madd_Comparison
+
+```{r}
+
+Mad %>% 
+  mutate(GrowthRate = (GDP - lag(GDP))/lag(GDP) * 100) %>%
+  filter(Entity %in% c("Turkey","World","Mexico","Thailand"),
+         Year %in% c(1980:2009) )%>%
+  mutate(Era = case_when(Year < 1960 ~ "1950's",
+    Year < 1970 ~ "1960's",
+    Year < 1980 ~ "1970's",
+    Year < 1990 ~ "1980's",
+    Year < 2000 ~ "1990's",
+    Year < 2010 ~ "2000's",
+    Year < 2020 ~ "2010's")) %>%
+  ggplot(aes(Era, GrowthRate, fill = Entity))+
+  geom_violin()+
+  labs(subtitle = "Violin Graph comparison of WC Countries and World")#+ 
+  theme(legend.position = "none")
+  
+WDI(country = )  
+
+
+```
+
+
+
+
+
+
+### Sectoral Shift in Turkey
+
+```{r}
+DvsS <- WDI(country = c("TR"),
+            indicator = c("SL.TLF.TOTL.IN",
+                          "SL.TLF.TOTL.FE.ZS"))
+
+DS <- DvsS %>%
+  filter(year > 1989) %>%
+  mutate(
+    LaborForce = SL.TLF.TOTL.IN / 1000000 ,
+    LPer_FE = round(SL.TLF.TOTL.FE.ZS, digits = 2) / 100,
+    Labor_FE = LaborForce * LPer_FE,
+    Labor_MA = LaborForce - Labor_FE) %>%
+  select(-c(iso2c, SL.TLF.TOTL.IN, SL.TLF.TOTL.FE.ZS))
+
+DvsS2 <- WDI(country = c("TR"),
+            indicator = c("SL.AGR.EMPL.MA.ZS",
+                          "SL.IND.EMPL.MA.ZS",
+                          "SL.SRV.EMPL.MA.ZS",
+                          "SL.AGR.EMPL.FE.ZS",
+                          "SL.IND.EMPL.FE.ZS",
+                          "SL.SRV.EMPL.FE.ZS"))
+DS2 <- DvsS2 %>% filter(year > 1989) %>%
+  mutate(
+    AGRPer_MA = round(SL.AGR.EMPL.MA.ZS, digits = 2) / 100,
+    INDPer_MA = round(SL.IND.EMPL.MA.ZS, digits = 2) / 100,
+    SRVPer_MA = round(SL.SRV.EMPL.MA.ZS, digits = 2) / 100,
+    AGRPer_FE = round(SL.AGR.EMPL.FE.ZS, digits = 2) / 100,
+    INDPer_FE = round(SL.IND.EMPL.FE.ZS, digits = 2) / 100,
+    SRVPer_FE = round(SL.SRV.EMPL.FE.ZS, digits = 2) / 100
+  ) %>%
+  select(-c(iso2c, SL.AGR.EMPL.MA.ZS, SL.IND.EMPL.MA.ZS,SL.SRV.EMPL.MA.ZS,
+            SL.AGR.EMPL.FE.ZS, SL.IND.EMPL.FE.ZS,SL.SRV.EMPL.FE.ZS,
+            country, year))
+
+
+
+DS3 <- cbind(DS, DS2)
+DS4 <- DS3 %>%
+  mutate(
+    AGR_MA = Labor_MA * AGRPer_MA,
+    IND_MA = Labor_MA * INDPer_MA,
+    SRV_MA = Labor_MA * SRVPer_MA,
+    AGR_FE = Labor_FE * AGRPer_FE,
+    IND_FE = Labor_FE * INDPer_FE,
+    SRV_FE = Labor_FE * SRVPer_FE) %>% 
+  melt(id = c("country", "year")) %>% 
+  separate(
+  col = variable,
+  into = c("ind", "Gender"),
+  sep = "_") %>%
+  mutate(
+    ind = as.factor(ind),
+    Gender = as.factor(Gender))
+  
+DS4 %>%
+  filter(ind == "LaborForce") %>%
+  ggplot()+
+  geom_bar(aes(x = year, y = value, fill = country), 
+           stat = "identity",position = "dodge")
+
+DS4 %>%
+  filter(ind %in% c("AGRPer", "SRVPer", "INDPer")) %>%
+  ggplot()+
+  geom_area(aes(x = year, y = value, fill = country))+
+  facet_grid(Gender ~ ind)+
+  labs(x = "year",
+       y = "Million",
+       title = "Turkey Employment in Agriculture, Industry, Service sectors Percentages for 
+       Woman and Man")
+
+Men_per <- DS4 %>%
+  filter(ind %in% c("AGRPer", "SRVPer", "INDPer"),
+         Gender == "FE") %>%
+  drop_na() %>%
+  ggplot()+
+  geom_area(aes(x = year, y = value, fill = ind))+
+  labs(x = "year",
+       y = "",
+       title = "Turkey Sectoral Percentages (Men)")+
+  theme(legend.position = "None")
+
+Women_per <- DS4 %>%
+  filter(ind %in% c("AGRPer", "SRVPer", "INDPer"),
+         Gender == "MA") %>%
+  drop_na() %>%
+  ggplot(aes(x = year, y = value, fill = ind))+
+  geom_area()+
+  labs(x = "year",
+       y = "",
+       title = "Turkey Sectoral Percentages (Women)")+
+  theme(legend.position = "None")+
+  annotate("text", label = "Service %", x = 2000, y = 0.2, color = "black")+
+  annotate("text", label = "Industry %", x = 2000, y = 0.6, color = "black")+
+  annotate("text", label = "Agriculture %", x = 2000, y = 0.9, color = "black")
+
+plot_grid(Men_per, Women_per)
+
+  
+```
+
+
+
+
+```{r}
+foreign_capital %>% 
+  mutate(Permits = ifelse(Year > 1988, Permits*1000, Permits),
+         Realisations = ifelse(Year == 2001, Realisations * 1000, Realisations)) %>%
+  filter(!is.na(Permits),
+         Year %in% c(1960:1993)) %>%
+  melt(id = "Year") %>% 
+  ggplot(aes(Year, value, fill = variable))+ 
+  geom_area()+
+  labs(title = "Foreign Capital Permits and Realisations in log",
+       y = "" ) 
+
+TR_WDI %>% 
+  select(Years, `Trade(%GDP)`) %>%
+  filter(Years > 1975)
+ Mad %>%
+   filter(Code == "TUR")
+
+
+```
+
+
+```{r}
+exchange_rates %>% 
+  melt(id = "Year") %>%
+  filter(Year < 1995) %>%
+  ggplot(aes(Year, value, color = variable))+
+  geom_line()
+
+Mad %>% 
+  mutate(GrowthRate = (GDP - lag(GDP))/lag(GDP) * 100) %>% 
+  filter(Year %in% c(1990: 1995),
+         Entity == "Mexico") %>% 
+  arrange(GrowthRate)
+
+
+```
+
+
+```{r}
+df1 %>% 
+  select(Date, Export_MilUS, Import_MilUS) %>%
+  melt(id = "Date")%>% 
+  ggplot(aes(Date, value, color = variable))+
+  geom_line()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

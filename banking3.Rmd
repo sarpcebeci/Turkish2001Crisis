@@ -1,0 +1,302 @@
+---
+title: "Untitled"
+output: html_document
+---
+```{r}
+library(ggforce)
+library(tidyverse)
+library(ggCyberPunk)
+library(scales)
+
+```
+
+
+```{r}
+TR_Growth %>%
+  filter(year > 1969,
+         year < 2002) %>%
+  ggplot(aes(year, GrowthRate)) + 
+  geom_point(aes(size = 1, color = Era)) +
+  geom_line(alpha = .25, color = "white") + 
+  geom_hline(yintercept = 0, color = "red")+
+  theme_dark() + 
+  theme(legend.position = "none")
+
+
+```
+
+
+
+```{r}
+TR_Growth <- WDI(country = "TUR",
+    indicator = "NY.GDP.PCAP.KD.ZG",
+    start = 1960, end = 2020) %>% 
+  arrange(year)
+names(TR_Growth)[3] <- "GrowthRate"
+
+TR_Growth <- TR_Growth %>%
+  mutate(Grow = ifelse(GrowthRate > 0, "Growth", "Degrowth"),
+         Era = case_when(
+    year < 1970 ~ "60's",
+    year < 1980 ~ "70's",
+    year < 1990 ~ "80's",
+    year < 2000 ~ "90's",
+    year < 2010 ~ "00's",
+    year < 2020 ~ "10's"))
+
+TR_Growth %>%
+  filter(year > 1969,
+         year < 2002) %>%
+  ggplot(aes(year, GrowthRate, color = Era, size = desc(Grow))) + 
+  geom_point() +
+  geom_hline(yintercept = 0, color = "red") + 
+  facet_zoom(x = Grow == "Degrowth") + 
+  theme_dark()+
+  theme(legend.position = "none")
+
+TR_Growth %>%
+  filter(year > 1969,
+         year < 2002) %>%
+  ggplot(aes(year, GrowthRate)) + 
+  geom_point(aes(size = 1, color = Era, size = desc(Grow))) +
+  geom_line(alpha = .25, color = "white") + 
+  geom_hline(yintercept = 0, color = "red")+
+  facet_zoom(x = year > 1990) + 
+  theme_dark() + 
+  theme(legend.position = "none")
+
+
+```
+
+
+```{r}
+TR_Growth %>%
+  filter(year > 1969,
+         year < 2002) %>%
+  ggplot(aes(year, GrowthRate)) + 
+  geom_point(aes(size = 1, color = Era, size = desc(Grow))) +
+  geom_line(alpha = .25, color = "white") + 
+  geom_hline(yintercept = 0, color = "red")+
+  facet_zoom(x = Era == "00's") + 
+  theme_dark() + 
+  theme(legend.position = "none",
+        axis.text.x=element_blank())
+
+
+
+```
+
+
+```{r}
+TR_Growth %>%
+  filter(year > 1969,
+         year < 2002) %>%
+  ggplot(aes(year, GrowthRate)) + 
+  geom_point(aes(size = 1, color = Era, size = desc(Grow))) +
+  geom_line(alpha = .25, color = "white") + 
+  geom_hline(yintercept = 0, color = "red")+
+  facet_zoom(x = Era == "70's") + 
+  theme_dark() + 
+  theme(legend.position = "none",
+        axis.text.x=element_blank())
+
+
+```
+
+
+
+
+```{r}
+cyber_df <- TR_WDI %>%
+  select(Money_Growth, Inflation_Consumer)
+
+cyber_lines(x = TR_WDI$Years,
+            df = cyber_df,
+            area = TRUE,
+            glow = TRUE,
+            bg.col = "black",
+            grid.col = rgb(1, 1, 1, 0.1),
+            main = "Cyberpunk")
+
+```
+
+
+```{r}
+my_df <- data.frame(x = cyber_df$Money_Growth,
+                    z = cyber_df$Inflation_Consumer)
+cyber_lines(x = x,
+           df = my_df,
+           area = TRUE,
+           glow = T,
+           bg.col = "black",
+           grid.col = rgb(1, 1, 1, 0.1),
+           main = "Green -> Money Growth, Pink -> Inflation of Consumer",
+           main.size = 15)
+
+
+```
+
+
+```{r}
+exchange_rates %>% 
+  melt(id = "Year") %>%
+  filter(Year %in% c(1989:2002)) %>%
+  ggplot(aes(Year, value, color = variable))+
+  geom_line(size = 2)
+
+
+
+```
+
+```{r}
+df <- TR_WDI %>% 
+  filter(Years %in% c(1988:2002)) %>% 
+  select(-c("Med_High_Exports",
+            "Tariff_Rate",
+            "Gini_Index",
+            "Homicides",
+            "Firms_Using_Banks(%firms)",
+            "Ease_of_Doing_Business",
+            "No_Depositors",
+            "Lending_Interest_Rate",
+            "Gov_Debt_Total(%GDP)",
+            "Tax_Revenue",
+            "Liquid_Reserve_Ratio(%)"))
+plot(df$Years,df$GDP, main = "GDP",type = "l", xlab ="", ylab = "", color = "green")
+Mad
+
+```
+
+
+```{r}
+TR_WDI %>% 
+  select(Years, Gov_Final_Consumption) %>% 
+  filter(Years %in% c(1980:2002)) %>% 
+  ggplot(aes(Years, log(Gov_Final_Consumption))) + 
+  geom_line(color = "orange") + 
+  labs(title = "Gov Spending in Log",y = "") + 
+  theme_dark()
+  
+```
+
+```{r}
+TR_WDI %>% 
+  select(Years, `Short_Term_Debt(%Reserves)`) %>% 
+  filter(Years %in% c(1980:2000)) %>% 
+  ggplot(aes(Years, `Short_Term_Debt(%Reserves)`)) + 
+  geom_line(color = "blue") + 
+  theme_dark()
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

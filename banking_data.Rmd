@@ -1,0 +1,349 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+### Packages 
+
+```{r}
+library(tidyverse)
+library(xlsx)
+library(WDI)
+library(rvest)
+library(reshape2)
+library(glue)
+```
+
+
+### I downloaded the data from evds (CBTR database)
+
+```{r}
+colnames1 <- c(
+  "Date",
+  "Current_Accounts_MilUS",
+  "Export_MilUS",
+  "Import_MilUS",
+  "Reserve_Assets_MilUS",
+  "FDI_Net_Assets_MilUS",
+  "Portfolio_Net_Assets_MilUS")
+
+df1 <- read.xlsx("df1.xlsx", sheetIndex = 1, endRow = 430)
+colnames(df1) <- colnames1
+df1 <- df1 %>%
+  mutate(Date = as.Date(paste0(df1$Date, "-01"), format = "%Y-%m-%d"))
+df1
+```
+
+```{r}
+colnames2 <- c(
+  "Date",
+  "BS_Reserve",
+  "BS_Cental_Bank",
+  "BS_Banks",
+  "Total_Assets",
+  "Deposit")
+
+df2 <- read.xlsx("df2.xlsx", sheetIndex = 1, endRow = 417)
+colnames(df2) <- colnames2
+df2 <- df2 %>%
+  mutate(Date = as.Date(paste0(df2$Date, "-01"), format = "%Y-%m-%d"))
+df2
+```
+
+
+
+### Datas from World Bank
+
+```{r}
+TR_WDI_Download <- WDI(country = "TR",
+    indicator = c(
+      "TX.MNF.TECH.ZS.UN",
+      "TM.TAX.MANF.SM.AR.ZS",
+      "SI.POV.GINI",
+      "NE.RSB.GNFS.ZS",
+      "VC.IHR.PSRC.MA.P5",
+      "IC.FRM.BNKS.ZS",
+      "IC.BUS.EASE.XQ",
+      "FM.LBL.BMNY.ZG",
+      "FB.CBK.DPTR.P3",
+      "NE.TRD.GNFS.ZS",
+      "NE.CON.GOVT.CN",
+      "FR.INR.LEND",
+      "DT.DOD.DSTC.IR.ZS",
+      "GC.DOD.TOTL.GD.ZS",
+      "GC.TAX.TOTL.CN",
+      "FP.CPI.TOTL.ZG",
+      "FD.RES.LIQU.AS.ZS",
+      "NY.GNS.ICTR.GN.ZS",
+      "DT.DOD.DIMF.CD",
+      "BN.KLT.DINV.CD",
+      "BM.KLT.DINV.CD.WD",
+      "NY.GDP.PCAP.CD",
+      "NV.IND.MANF.ZS",
+      "FD.AST.PRVT.GD.ZS",
+      "NE.EXP.GNFS.ZS"),
+    start = 1960,
+    end = 2019
+    )
+TR_WDI <- TR_WDI_Download[,-c(1,2)]
+colnames_WDI <- c(
+  "Years",
+  "Med_High_Exports",
+  "Tariff_Rate",
+  "Gini_Index",
+  "External_Balance_on_Goods_Services_%GDP",
+  "Homicides",
+  "Firms_Using_Banks(%firms)",
+  "Ease_of_Doing_Business",
+  "Money_Growth",
+  "No_Depositors",
+  "Trade(%GDP)",
+  "Gov_Final_Consumption",
+  "Lending_Interest_Rate",
+  "Short_Term_Debt(%Reserves)",
+  "Gov_Debt_Total(%GDP)",
+  "Tax_Revenue",
+  "Inflation_Consumer",
+  "Liquid_Reserve_Ratio(%)",
+  "Gross_Savings(%GNI)",
+  "IMF_Credit",
+  "FDI_Net",
+  "FDI_Net_Outflows",
+  "GDP",
+  "Manufacturing%",
+  "Credit_Private",
+  "Export%")
+colnames(TR_WDI) <- colnames_WDI
+
+```
+
+### Maddison Table, I picked this version because it contains World's GDP overall
+
+```{r}
+Mad <- read_csv("md.csv")
+Mad$GDP <- Mad$`Real GDP per capita in 2011US$, multiple benchmarks (Maddison Project Database (2018))`
+Mad <- Mad %>%
+  select(-`Real GDP per capita in 2011US$, multiple benchmarks (Maddison Project Database (2018))`)
+Mad
+```
+
+
+### Maddison comparison dataframe
+
+```{r}
+Mad_Comparison <- Mad %>% 
+  filter(Entity %in% c("Turkey","World"),
+         Year > 1949) %>%
+  mutate(Era = case_when(
+    Year < 1960 ~ "50's",
+    Year < 1970 ~ "60's",
+    Year < 1980 ~ "70's",
+    Year < 1990 ~ "80's",
+    Year < 2000 ~ "90's",
+    Year < 2010 ~ "00's",
+    Year < 2020 ~ "10's"),
+    Era = as.factor(Era, order = c("50's","60's","70's","80's","90's","00's","10's")))
+```
+
+
+
+
+### Web scraping function for ekodialog.com
+
+```{r}
+ekodialog_scraper <- function(stat_name){
+  url <- glue("https://www.ekodialog.com/istatistik/{stat_name}.html") %>% as.character()
+  df_list <- read_html(url) %>%
+  html_table(fill = T)
+  df <- df_list[[14]] 
+  return(df)
+}
+```
+
+
+### Exchange Rate
+
+```{r}
+df <- ekodialog_scraper("doviz_kur")
+df <- df[-c(1:4),]
+colnames(df) <- c(
+  "Year",
+  "Average_USD",
+  "Average_Mark",
+  "Average_Euro")
+df <- df[,c(1:4)]
+
+# USD tidy
+df$Average_USD[c(19:35)]
+v <- gsub("\\.", "",df$Average_USD[c(19:35)])
+v <- gsub(",", "\\.",v)
+df$Average_USD[c(19:35)] <- v
+
+# Mark tidy
+df$Average_Mark[c(20:32)]
+v <- gsub("\\.", "",df$Average_Mark[c(20:32)])
+v <- gsub(",", "\\.",v)
+df$Average_Mark[c(20:32)] <- v
+
+# Euro tidy
+df$Average_Euro[c(30:35)]
+v <- gsub("\\.", "",df$Average_Euro[c(30:35)])
+v <- gsub(",", "\\.",v)
+df$Average_Euro[c(30:35)] <- v
+
+df[df == "-"] <- NA
+df <- sapply(df, as.numeric) %>% as.data.frame()
+(exchange_rates <- df)
+
+```
+
+
+### Inflation
+
+```{r}
+df <- ekodialog_scraper("enflasyon")
+colnames(df) <- c(
+  "Year",
+  "Wholesale_Price_End_Year",
+  "Wholesale_Price_Average",
+  "Consumer_Prices_End_Year",
+  "Consumer_Prices_Average")
+df <- df[-c(1:3),]
+df <- sapply(df, as.numeric) %>% as.data.frame()
+(inflation_ed <- df)
+
+```
+
+
+### Foreign_Investment
+
+```{r}
+# Foreign_Investment
+df <- ekodialog_scraper("yabanci_ser")
+df <- df[-c(1:4),-c(3)]
+colnames(df) <- c(
+  "Year",
+  "Permits",
+  "Realisations")
+df[25,2] <- "1.208"
+df[26,2] <- NA
+df <- sapply(df, as.numeric) %>% as.data.frame()
+(foreign_capital <- df)
+write_csv(foreign_capital, "foreign_capital.csv")
+
+```
+
+
+### Reserves
+
+```{r}
+df <- ekodialog_scraper("mb_rezerv")
+colnames(df) <- c(
+  "Months",
+  1996:2005
+)
+
+df <- df[-c(1,2), -c(1,11)]
+df$Months = month.name
+df <- df %>% melt()
+colnames(df) <- c(
+  "Month",
+  "Year",
+  "CRBT_RESERVE_OF_DOLAR")
+(reserve <- df)
+
+```
+
+### Interest Rates
+
+```{r}
+df <- ekodialog_scraper("faiz_oranlar")
+df <- df[-c(1:4),]
+colnames(df) <- c(
+  "Year",
+  "Saving_Deposits_Int_Rates",
+  "Int_Rates_on_CBRT_Disc",
+  "Interbank_Overnight_Rate")
+df[df == "-"] <- NA
+df$Int_Rates_on_CBRT_Disc <- gsub(",", "\\.",df$Int_Rates_on_CBRT_Disc)
+df[35,2] <- "22.1"
+df[35,4] <- "19.1"
+df <- sapply(df, as.numeric) %>% as.data.frame()
+(interest_rates <- df)
+
+```
+
+### Oecd reserves
+
+```{r}
+read_csv("oecd_all.csv") %>% 
+  filter(LOCATION == "TUR") %>%
+  select(INDICATOR) %>%
+  unique()
+
+
+```
+
+### An attempt to capture people's opinions about the crisis 
+
+
+```{r}
+library(rvest)
+library(glue)
+
+
+
+entry <- list()
+date <- list()
+author <- list()
+for (i in c(1:6)) {     
+url <- glue("https://eksisozluk.com/21-subat-krizi--386798?p={i}") %>%
+  as.character()
+entry[[i]] <- read_html(url) %>%
+  html_nodes(".content") %>%
+  html_text()
+date[[i]] <- read_html(url) %>%
+  html_nodes(".permalink") %>%
+  html_text()
+author[[i]] <- read_html(url) %>%
+  html_nodes(".entry-author") %>%
+  html_text()}
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
